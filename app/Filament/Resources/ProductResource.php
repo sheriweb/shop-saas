@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -105,9 +106,63 @@ class ProductResource extends Resource
             return true;
         }
         
-        // Shop owners can always view
-        if (in_array('shop_owner', $userRoles)) {
+        // Shop owners and staff need an active subscription to view
+        if ((in_array('shop_owner', $userRoles) || in_array('staff', $userRoles)) && $user->shop) {
+            // Explicitly check for deactivated subscriptions
+            $hasDeactivatedSubscription = $user->shop->subscriptions()
+                ->where('status', 'deactivated')
+                ->whereDate('end_date', '>=', now()->toDateString())
+                ->exists();
+                
+            if ($hasDeactivatedSubscription) {
+                return false;
+            }
+            
+            return $user->shop->hasActiveSubscription();
+        }
+        
+        return false;
+    }
+    
+    public static function canCreate(): bool
+    {
+        // Check if user exists
+        if (!Auth::check()) return false;
+        
+        $user = Auth::user();
+        $userRoles = $user->roles->pluck('name')->toArray();
+        
+        // Super admin can always create
+        if (in_array('super_admin', $userRoles)) {
             return true;
+        }
+        
+        // Shop owners need an active subscription to create
+        if (in_array('shop_owner', $userRoles) || in_array('staff', $userRoles)) {
+            // Check if shop can perform operations
+            return $user->shop && $user->shop->canPerformOperations();
+        }
+        
+        return false;
+    }
+    
+    public static function canEdit(Model $record): bool
+    {
+        // Check if user exists
+        if (!Auth::check()) return false;
+        
+        $user = Auth::user();
+        $userRoles = $user->roles->pluck('name')->toArray();
+        
+        // Super admin can always edit
+        if (in_array('super_admin', $userRoles)) {
+            return true;
+        }
+        
+        // Shop owners need an active subscription to edit
+        if ((in_array('shop_owner', $userRoles) || in_array('staff', $userRoles)) && $record->shop_id === $user->shop_id) {
+            // Check if shop can perform operations
+            return $user->shop && $user->shop->canPerformOperations();
         }
         
         return false;

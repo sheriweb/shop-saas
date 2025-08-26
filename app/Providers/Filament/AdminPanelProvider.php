@@ -55,6 +55,7 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
                 'check.permission:access_filament', // 👈 custom permission check
                 'ensure.subscription', // 👈 block non-active shops (except super_admin)
+                'ensure.operational', // 👈 block shops with deactivated subscriptions
             ]);
     }
 }

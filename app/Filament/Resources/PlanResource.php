@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
+use Spatie\Permission\Models\Permission;
 
 class PlanResource extends Resource
 {
@@ -24,7 +25,12 @@ class PlanResource extends Resource
             Forms\Components\TextInput::make('name')->required()->maxLength(255),
             Forms\Components\TextInput::make('duration_days')->numeric()->required()->label('Duration (days)'),
             Forms\Components\TextInput::make('price')->numeric()->required(),
-            Forms\Components\KeyValue::make('features')->label('Features')->keyLabel('Feature')->valueLabel('Value')->addButtonLabel('Add feature')->nullable(),
+            Forms\Components\CheckboxList::make('features')
+                ->label('Features (select permissions unlocked by this plan)')
+                ->options(fn () => Permission::query()->pluck('name', 'name')->toArray())
+                ->columns(2)
+                ->helperText('Plans store selected permission names; middleware will intersect user permissions with these features.')
+                ->nullable(),
         ]);
     }
 
